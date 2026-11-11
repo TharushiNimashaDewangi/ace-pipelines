@@ -1,0 +1,60 @@
+# =====================================================================
+# environments.yml  —  single source of truth for the promotion path
+# ---------------------------------------------------------------------
+# Every pipeline (CI/PR, Promote, CI/Build + CD/Deploy, Rollback) reads
+# this file. No workflow may hardcode an environment name.
+#
+# To add an environment later (e.g. "preprod"):
+#   1. add an entry here
+#   2. create its branch + conf/overrides.properties in the app repo
+#   3. create the GitHub Environment (secrets, approval) + branch ruleset
+#   -> no workflow code changes.
+#
+# Order matters: entries are listed in promotion order.
+# The LAST entry is the hotfix target (hotfix/* PRs go into its branch).
+#
+# LAB NOTE: dummy values only. Never put passwords or tokens in here.
+# =====================================================================
+version: 1
+
+tooling:
+  # Docker image that contains ibmint (used to package, apply overrides, deploy).
+  # Lab: locally built image. Company: pull from central registry by digest.
+  ace_image: "ace:13.0.9.0"
+
+environments:
+  - name: dev
+    branch: develop
+    promote_from: null          # changes arrive from feature/* PRs
+    approval: false             # GitHub Environment "dev": no required reviewers
+    deploy:
+      mode: live                # real `ibmint deploy`
+      target:
+        container: ace-server   # lab: existing standalone integration server
+        protocol: https
+        host: localhost
+        port: 7600
+
+  - name: qa
+    branch: qa
+    promote_from: develop
+    approval: false             # automatic, as in the company design
+    deploy:
+      mode: dry-run             # lab: build + overrides + checksum, no server
+      target:
+        container: ace-qa       # placeholder, not running in the lab
+        protocol: https
+        host: localhost
+        port: 7601
+
+  - name: uat
+    branch: uat
+    promote_from: qa
+    approval: true              # GitHub Environment "uat": required reviewers
+    deploy:
+      mode: dry-run
+      target:
+        container: ace-uat      # placeholder, not running in the lab
+        protocol: https
+        host: localhost
+        port: 7602
